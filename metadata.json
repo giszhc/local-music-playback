@@ -1,0 +1,5 @@
+{
+  "name": "Sonic Atelier",
+  "description": "A modern, minimalist music player for the digital luthier. Features local library scanning, A-Z navigation, and immersive lyrics display.",
+  "requestFramePermissions": []
+}
