@@ -25,16 +25,28 @@ export default function LyricsView({
 }: LyricsViewProps) {
   // Mock lyrics for demo
   const lyrics = [
-    { time: 0, text: "一群嗜血的蚂蚁 被腐肉所吸引" },
-    { time: 5, text: "我用漂亮的押韵 形容被掠夺一空的爱情" },
-    { time: 10, text: "啊 乌云开始堆积 隔绝了那道光" },
-    { time: 15, text: "为你弹奏肖邦的夜曲 纪念我死去的爱情", active: true },
-    { time: 20, text: "而我为你隐姓埋名 在这没有人的森林" },
-    { time: 25, text: "想夜曲响起 我会听见你" },
-    { time: 30, text: "手在琴键上 敲击出那属于我们的回忆" },
-    { time: 35, text: "那些过去的 已经回不来的" },
-    { time: 40, text: "就像风一样 轻轻地走了" },
+    { time: 0, text: "为你弹奏肖邦的夜曲" },
+    { time: 5, text: "纪念我死去的爱情" },
+    { time: 10, text: "而我为你隐姓埋名" },
+    { time: 15, text: "在月光下弹琴" },
+    { time: 20, text: "为你弹奏肖邦的夜曲" },
+    { time: 25, text: "纪念我死去的爱情" },
+    { time: 30, text: "而我为你隐姓埋名" },
+    { time: 35, text: "在月光下弹琴" },
+    { time: 40, text: "为你弹奏肖邦的夜曲" },
+    { time: 45, text: "纪念我死去的爱情" },
+    { time: 50, text: "而我为你隐姓埋名" },
+    { time: 55, text: "在月光下弹琴" },
+    { time: 60, text: "为你弹奏肖邦的夜曲" },
+    { time: 65, text: "纪念我死去的爱情" },
+    { time: 70, text: "而我为你隐姓埋名" },
+    { time: 75, text: "在月光下弹琴" },
   ];
+
+  const currentLyricIndex = lyrics.findIndex((l, i) => {
+    const next = lyrics[i + 1];
+    return progress >= l.time && (!next || progress < next.time);
+  });
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -52,38 +64,38 @@ export default function LyricsView({
     >
       {/* Immersive Background */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-white opacity-80 z-10" />
+        <div className="absolute inset-0 bg-background/80 z-10" />
         <div 
-          className="absolute inset-0 bg-cover bg-center scale-110 blur-[100px] saturate-150"
+          className="absolute inset-0 bg-cover bg-center scale-110 blur-[100px] saturate-150 opacity-40"
           style={{ backgroundImage: `url(${song?.cover || 'https://picsum.photos/seed/music/1920/1080'})` }}
         />
       </div>
 
       {/* Top Nav */}
-      <nav className="relative z-10 h-16 flex items-center justify-between px-8 bg-white/40 backdrop-blur-xl">
+      <nav className="relative z-10 h-16 flex items-center justify-between px-8 bg-white/5 backdrop-blur-xl">
         <div className="flex items-center gap-6">
-          <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors">
-            <ChevronDown className="text-black/60" />
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+            <ChevronDown className="text-white/60" />
           </button>
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-black tracking-tight">正在播放</span>
-            <span className="text-xs text-black/40">{song?.title} - {song?.artist}</span>
+            <span className="text-sm font-bold text-white tracking-tight">正在播放</span>
+            <span className="text-xs text-white/40">{song?.title} - {song?.artist}</span>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary-dim hover:bg-primary/20 transition-all font-medium text-sm">
+          <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all font-medium text-sm">
             <Sparkles size={14} />
             <span>一键匹配封面和歌词</span>
           </button>
           <div className="flex items-center gap-3 ml-4">
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-black/5 rounded-full transition-colors">
-              <Heart size={18} className="text-black/60" />
+            <button className="w-8 h-8 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors">
+              <Heart size={18} className="text-white/60" />
             </button>
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-black/5 rounded-full transition-colors">
-              <Share2 size={18} className="text-black/60" />
+            <button className="w-8 h-8 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors">
+              <Share2 size={18} className="text-white/60" />
             </button>
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-black/5 rounded-full transition-colors">
-              <MoreHorizontal size={18} className="text-black/60" />
+            <button className="w-8 h-8 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors">
+              <MoreHorizontal size={18} className="text-white/60" />
             </button>
           </div>
         </div>
@@ -95,7 +107,7 @@ export default function LyricsView({
         <section className="flex-1 flex flex-col items-end justify-center">
           <div className="relative group">
             <div className="absolute -inset-4 bg-primary/20 blur-3xl opacity-40 group-hover:opacity-60 transition-opacity" />
-            <div className="relative w-[480px] h-[480px] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-black/5 bg-surface-container">
+            <div className="relative w-[480px] h-[480px] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/5 bg-surface-container">
               <img 
                 src={song?.cover || 'https://picsum.photos/seed/music/800/800'} 
                 alt="" 
@@ -104,27 +116,28 @@ export default function LyricsView({
             </div>
           </div>
           <div className="mt-12 text-right w-[480px]">
-            <h1 className="text-4xl font-bold text-black mb-2 tracking-tight">{song?.title}</h1>
-            <p className="text-xl text-black/60 font-medium">{song?.artist} — {song?.album || '未知专辑'}</p>
+            <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">{song?.title}</h1>
+            <p className="text-xl text-white/60 font-medium">{song?.artist} — {song?.album || '未知专辑'}</p>
             <div className="flex items-center justify-end gap-3 mt-6">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-black/5 text-black/40 uppercase">Lossless</span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-black/5 text-black/40 uppercase">24-bit / 192kHz</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-white/5 text-white/40 uppercase">Lossless</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-white/5 text-white/40 uppercase">24-bit / 192kHz</span>
             </div>
           </div>
         </section>
 
         {/* Right: Lyrics */}
         <section className="flex-1 h-full flex flex-col justify-center">
-          <div className="max-h-[600px] overflow-y-auto hide-scrollbar pr-12 space-y-8 mask-gradient">
+          <div className="max-h-[600px] overflow-y-auto hide-scrollbar pr-12 space-y-8 mask-gradient py-40">
             {lyrics.map((line, i) => (
               <p 
                 key={i}
                 className={cn(
                   "transition-all duration-500 cursor-pointer",
-                  line.active 
-                    ? "text-4xl font-bold text-primary-dim transform scale-105 origin-left" 
-                    : "text-2xl font-semibold text-black/20 hover:text-black/40"
+                  currentLyricIndex === i 
+                    ? "text-4xl font-bold text-primary transform scale-105 origin-left" 
+                    : "text-2xl font-semibold text-white/20 hover:text-white/40"
                 )}
+                onClick={() => onSeek(line.time)}
               >
                 {line.text}
               </p>
@@ -134,11 +147,11 @@ export default function LyricsView({
       </main>
 
       {/* Bottom Controls */}
-      <footer className="relative z-10 h-32 px-12 bg-white/60 backdrop-blur-2xl flex flex-col items-center justify-center">
+      <footer className="relative z-10 h-32 px-12 bg-background/60 backdrop-blur-2xl flex flex-col items-center justify-center">
         <div className="w-full max-w-[1200px] flex items-center gap-4 mb-4">
-          <span className="text-[10px] font-bold text-black/40 font-mono w-10">{formatTime(progress)}</span>
+          <span className="text-[10px] font-bold text-white/40 font-mono w-10">{formatTime(progress)}</span>
           <div 
-            className="flex-1 h-[3px] bg-black/5 rounded-full relative group cursor-pointer"
+            className="flex-1 h-[3px] bg-white/5 rounded-full relative group cursor-pointer"
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               const x = e.clientX - rect.left;
@@ -154,33 +167,33 @@ export default function LyricsView({
               style={{ left: `${(progress / duration) * 100}%` }}
             />
           </div>
-          <span className="text-[10px] font-bold text-black/40 font-mono w-10">{formatTime(duration)}</span>
+          <span className="text-[10px] font-bold text-white/40 font-mono w-10">{formatTime(duration)}</span>
         </div>
 
         <div className="w-full max-w-[1200px] flex items-center justify-between">
           <div className="flex items-center gap-6 w-1/3">
-            <button className="text-black/60 hover:text-primary transition-colors"><Shuffle size={20} /></button>
-            <button className="text-black/60 hover:text-primary transition-colors"><Repeat size={20} /></button>
+            <button className="text-white/60 hover:text-primary transition-colors"><Shuffle size={20} /></button>
+            <button className="text-white/60 hover:text-primary transition-colors"><Repeat size={20} /></button>
           </div>
           <div className="flex items-center gap-10">
-            <button className="hover:scale-110 transition-transform"><SkipBack size={32} fill="currentColor" className="text-black" /></button>
+            <button className="hover:scale-110 transition-transform"><SkipBack size={32} fill="currentColor" className="text-white" /></button>
             <button 
               onClick={onPlayPause}
               className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
             >
               {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
             </button>
-            <button className="hover:scale-110 transition-transform"><SkipForward size={32} fill="currentColor" className="text-black" /></button>
+            <button className="hover:scale-110 transition-transform"><SkipForward size={32} fill="currentColor" className="text-white" /></button>
           </div>
           <div className="flex items-center justify-end gap-6 w-1/3">
             <div className="flex items-center gap-3">
-              <Volume2 size={20} className="text-black/60" />
-              <div className="w-24 h-[3px] bg-black/5 rounded-full relative">
-                <div className="absolute h-full w-[70%] bg-black/40 rounded-full" />
+              <Volume2 size={20} className="text-white/60" />
+              <div className="w-24 h-[3px] bg-white/5 rounded-full relative">
+                <div className="absolute h-full w-[70%] bg-white/40 rounded-full" />
               </div>
             </div>
-            <button className="text-black/60 hover:text-primary transition-colors"><ListMusic size={20} /></button>
-            <button className="text-black/60 hover:text-primary transition-colors"><Mic2 size={20} /></button>
+            <button className="text-white/60 hover:text-primary transition-colors"><ListMusic size={20} /></button>
+            <button className="text-white/60 hover:text-primary transition-colors"><Mic2 size={20} /></button>
           </div>
         </div>
       </footer>

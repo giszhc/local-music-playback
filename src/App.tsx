@@ -116,6 +116,13 @@ export default function App() {
     player.play(song);
   }, [player, songs]);
 
+  const handlePlayAll = useCallback((songsToPlay: Song[]) => {
+    if (songsToPlay.length > 0) {
+      player.setQueue(songsToPlay);
+      player.play(songsToPlay[0]);
+    }
+  }, [player]);
+
   return (
     <div className="flex h-screen w-full bg-background text-white overflow-hidden">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -130,6 +137,7 @@ export default function App() {
               songs={songs} 
               onPlaySong={handlePlaySong} 
               onAddFolder={handleAddFolder} 
+              onPlayAll={handlePlayAll}
               isScanning={isScanning}
             />
           )}
@@ -138,9 +146,10 @@ export default function App() {
               <p className="text-xl font-bold mb-4">文件夹管理</p>
               <button 
                 onClick={handleAddFolder}
-                className="px-6 py-3 bg-primary text-white rounded-xl font-bold hover:brightness-110 transition-all"
+                disabled={isScanning}
+                className="px-6 py-3 bg-primary text-white rounded-xl font-bold hover:brightness-110 transition-all disabled:opacity-50"
               >
-                添加本地文件夹
+                {isScanning ? '正在扫描...' : '添加本地文件夹'}
               </button>
             </div>
           )}
@@ -154,12 +163,16 @@ export default function App() {
           progress={player.progress}
           duration={player.duration}
           volume={player.volume}
+          queue={player.queue}
+          playMode={player.playMode}
           onPlayPause={() => player.isPlaying ? player.pause() : player.play()}
           onSeek={player.seek}
           onVolumeChange={player.setVolume}
           onToggleLyrics={() => setShowLyrics(true)}
           onNext={player.playNext}
           onPrev={player.playPrevious}
+          onTogglePlayMode={player.togglePlayMode}
+          onPlaySong={handlePlaySong}
         />
       </main>
 

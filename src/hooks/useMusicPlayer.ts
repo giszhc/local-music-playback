@@ -146,6 +146,14 @@ export function useMusicPlayer() {
     }
   }, [volume]);
 
+  const togglePlayMode = useCallback(() => {
+    setPlayMode(prev => {
+      if (prev === 'list') return 'random';
+      if (prev === 'random') return 'single';
+      return 'list';
+    });
+  }, []);
+
   return {
     currentSong,
     isPlaying,
@@ -157,6 +165,7 @@ export function useMusicPlayer() {
     setVolume,
     setQueue,
     setPlayMode,
+    togglePlayMode,
     play,
     pause,
     stop,

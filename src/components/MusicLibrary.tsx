@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { FolderOpen, Play, MoreHorizontal, Heart, SortAsc } from 'lucide-react';
+import { FolderOpen, Play, MoreHorizontal, Heart, SortAsc, ChevronDown } from 'lucide-react';
 import { Song } from '../types';
 import { pinyin } from 'pinyin-pro';
 import { cn } from '../lib/utils';
@@ -8,11 +8,13 @@ interface MusicLibraryProps {
   songs: Song[];
   onPlaySong: (song: Song) => void;
   onAddFolder: () => void;
+  onPlayAll: (songs: Song[]) => void;
   isScanning?: boolean;
 }
 
-export default function MusicLibrary({ songs, onPlaySong, onAddFolder, isScanning = false }: MusicLibraryProps) {
+export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll, isScanning = false }: MusicLibraryProps) {
   const [sortKey, setSortKey] = useState<'title' | 'artist' | 'addedAt'>('addedAt');
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
 
   const alphabet = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -50,6 +52,40 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, isScannin
             <p className="text-on-surface-variant mt-2 text-sm">在这里探索和管理你的私人收藏。</p>
           </div>
           <div className="flex gap-3">
+            <div className="relative">
+              <button 
+                onClick={() => setShowSortMenu(!showSortMenu)}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-surface-container text-on-surface font-semibold text-sm hover:bg-surface-bright transition-all"
+              >
+                <SortAsc size={18} />
+                排序: {sortKey === 'title' ? '标题' : sortKey === 'artist' ? '艺术家' : '添加时间'}
+                <ChevronDown size={14} className={cn("transition-transform", showSortMenu && "rotate-180")} />
+              </button>
+              
+              {showSortMenu && (
+                <div className="absolute top-full right-0 mt-2 w-40 bg-surface-container rounded-xl shadow-2xl border border-outline-variant py-2 z-50">
+                  <button 
+                    onClick={() => { setSortKey('addedAt'); setShowSortMenu(false); }}
+                    className={cn("w-full text-left px-4 py-2 text-sm hover:bg-white/5", sortKey === 'addedAt' && "text-primary")}
+                  >
+                    添加时间
+                  </button>
+                  <button 
+                    onClick={() => { setSortKey('title'); setShowSortMenu(false); }}
+                    className={cn("w-full text-left px-4 py-2 text-sm hover:bg-white/5", sortKey === 'title' && "text-primary")}
+                  >
+                    歌曲标题
+                  </button>
+                  <button 
+                    onClick={() => { setSortKey('artist'); setShowSortMenu(false); }}
+                    className={cn("w-full text-left px-4 py-2 text-sm hover:bg-white/5", sortKey === 'artist' && "text-primary")}
+                  >
+                    艺术家
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button 
               onClick={onAddFolder}
               disabled={isScanning}
@@ -62,7 +98,10 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, isScannin
               )}
               {isScanning ? '正在扫描...' : '添加文件夹'}
             </button>
-            <button className="flex items-center gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-primary-dim text-white font-bold text-sm shadow-lg shadow-primary/20 hover:brightness-110 transition-all">
+            <button 
+              onClick={() => onPlayAll(sortedSongs)}
+              className="flex items-center gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-primary-dim text-white font-bold text-sm shadow-lg shadow-primary/20 hover:brightness-110 transition-all"
+            >
               <Play size={18} fill="currentColor" />
               全部播放
             </button>
