@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { ChevronDown, Sparkles, Heart, Share2, MoreHorizontal, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, ListMusic, Mic2 } from 'lucide-react';
+import { ChevronDown, Sparkles, Heart, MoreHorizontal, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, ListMusic, Mic2, X, Music } from 'lucide-react';
 import { Song } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -17,6 +17,10 @@ interface LyricsViewProps {
   onPrev: () => void;
   onTogglePlayMode: () => void;
   onVolumeChange: (volume: number) => void;
+  onToggleLike: (songId: string) => void;
+  likedSongIds: Set<string>;
+  onPlaySong: (song: Song) => void;
+  queue: Song[];
   playMode: 'list' | 'random' | 'single';
   volume: number;
   onUpdateSong?: (songId: string, updates: Partial<Song>) => void;
@@ -39,11 +43,16 @@ export default function LyricsView({
   onPrev,
   onTogglePlayMode,
   onVolumeChange,
+  onToggleLike,
+  likedSongIds,
+  onPlaySong,
+  queue,
   playMode,
   volume,
   onUpdateSong
 }: LyricsViewProps) {
   const [isAutoMatching, setIsAutoMatching] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
 
   // Parse LRC lyrics
   const parsedLyrics = useMemo<LyricLine[]>(() => {
@@ -151,11 +160,14 @@ export default function LyricsView({
             <span>{isAutoMatching ? '正在匹配...' : '一键匹配封面和歌词'}</span>
           </button>
           <div className="flex items-center gap-3 ml-4">
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors">
-              <Heart size={18} className="text-white/60" />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors">
-              <Share2 size={18} className="text-white/60" />
+            <button 
+              onClick={() => song && onToggleLike(song.id)}
+              className="w-8 h-8 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors"
+            >
+              <Heart 
+                size={18} 
+                className={cn(song && likedSongIds.has(song.id) ? "text-primary fill-primary" : "text-white/60")} 
+              />
             </button>
             <button className="w-8 h-8 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors">
               <MoreHorizontal size={18} className="text-white/60" />
@@ -295,7 +307,7 @@ export default function LyricsView({
             </button>
           </div>
           <div className="flex items-center justify-end gap-6 w-1/3">
-            <div className="flex items-center gap-3 w-32 group relative">
+            <div className="flex items-center gap-3 w-40 group relative">
               <Volume2 size={20} className="text-white/60 group-hover:text-white shrink-0" />
               <div 
                 className="flex-1 h-[3px] bg-white/5 rounded-full relative cursor-pointer"
@@ -330,12 +342,82 @@ export default function LyricsView({
                   style={{ left: `${volume * 100}%` }}
                 />
               </div>
+              <span className="text-[10px] text-white/40 w-8 font-mono font-bold">
+                {Math.round(volume * 100)}%
+              </span>
             </div>
-            <button className="text-white/60 hover:text-primary transition-colors"><ListMusic size={20} /></button>
+            <button 
+              onClick={() => setShowQueue(!showQueue)}
+              className={cn(
+                "transition-colors",
+                showQueue ? "text-primary" : "text-white/60 hover:text-primary"
+              )}
+            >
+              <ListMusic size={20} />
+            </button>
             <button className="text-white/60 hover:text-primary transition-colors"><Mic2 size={20} /></button>
           </div>
         </div>
       </footer>
+
+      {/* Queue Overlay */}
+      <AnimatePresence>
+        {showQueue && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowQueue(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm z-[110]"
+            />
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute top-0 right-0 h-full w-96 bg-surface-container/90 backdrop-blur-3xl z-[120] border-l border-white/10 flex flex-col shadow-2xl"
+            >
+              <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                <h3 className="text-xl font-bold">播放队列</h3>
+                <button onClick={() => setShowQueue(false)} className="p-2 hover:bg-white/5 rounded-full">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-2 hide-scrollbar">
+                {queue.map((s) => (
+                  <div 
+                    key={s.id}
+                    onClick={() => onPlaySong(s)}
+                    className={cn(
+                      "flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all group",
+                      song?.id === s.id ? "bg-primary/10" : "hover:bg-white/5"
+                    )}
+                  >
+                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
+                      <img src={s.cover} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "font-bold truncate",
+                        song?.id === s.id ? "text-primary" : "text-white"
+                      )}>{s.title}</p>
+                      <p className="text-xs text-white/40 truncate">{s.artist}</p>
+                    </div>
+                    {song?.id === s.id && isPlaying && (
+                      <div className="flex gap-0.5 items-end h-3">
+                        <div className="w-0.5 bg-primary animate-music-bar-1" />
+                        <div className="w-0.5 bg-primary animate-music-bar-2" />
+                        <div className="w-0.5 bg-primary animate-music-bar-3" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

@@ -345,6 +345,10 @@ export default function App() {
             onPrev={player.playPrevious}
             onTogglePlayMode={player.togglePlayMode}
             onVolumeChange={player.setVolume}
+            onToggleLike={handleToggleLike}
+            likedSongIds={likedSongIds}
+            onPlaySong={handlePlaySong}
+            queue={player.queue}
             onUpdateSong={handleUpdateSong}
           />
         )}
