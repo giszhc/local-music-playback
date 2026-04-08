@@ -15,7 +15,9 @@ import SearchView from './components/SearchView';
 import { useMusicPlayer } from './hooks/useMusicPlayer';
 import { Song } from './types';
 import { AnimatePresence } from 'motion/react';
-import { FolderOpen, MoreHorizontal } from 'lucide-react';
+import { FolderOpen, MoreHorizontal, Sparkles } from 'lucide-react';
+import * as mm from 'music-metadata-browser';
+import { matchMetadata } from './services/musicService';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -23,6 +25,7 @@ export default function App() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [isMatching, setIsMatching] = useState(false);
   const [addedFolders, setAddedFolders] = useState<string[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,32 +54,54 @@ export default function App() {
       return;
     }
 
-    const newSongs: Song[] = await Promise.all(audioFiles.map(async (file) => {
-      // Create a temporary audio element to get duration
-      const url = URL.createObjectURL(file);
-      const duration = await new Promise<number>((resolve) => {
-        const audio = new Audio(url);
-        audio.onloadedmetadata = () => resolve(audio.duration);
-        audio.onerror = () => resolve(0);
-      });
+    const newSongs: Song[] = [];
+    
+    for (const file of audioFiles) {
+      try {
+        const metadata = await mm.parseBlob(file);
+        const url = URL.createObjectURL(file);
+        
+        // Extract metadata
+        const title = metadata.common.title || file.name.replace(/\.[^/.]+$/, "");
+        const artist = metadata.common.artist || '未知艺术家';
+        const album = metadata.common.album;
+        const duration = metadata.format.duration || 0;
+        
+        // Extract cover if available
+        let cover = `https://picsum.photos/seed/${encodeURIComponent(title)}/400/400`;
+        if (metadata.common.picture && metadata.common.picture.length > 0) {
+          const pic = metadata.common.picture[0];
+          const blob = new Blob([pic.data], { type: pic.format });
+          cover = URL.createObjectURL(blob);
+        }
 
-      // Simple metadata extraction from filename
-      const fileName = file.name.replace(/\.[^/.]+$/, "");
-      const parts = fileName.split('-').map(p => p.trim());
-      const title = parts.length > 1 ? parts[1] : parts[0];
-      const artist = parts.length > 1 ? parts[0] : '未知艺术家';
-
-      return {
-        id: Math.random().toString(36).substr(2, 9),
-        title,
-        artist,
-        duration,
-        url,
-        file,
-        addedAt: Date.now(),
-        cover: `https://picsum.photos/seed/${encodeURIComponent(title)}/400/400`,
-      };
-    }));
+        newSongs.push({
+          id: Math.random().toString(36).substr(2, 9),
+          title,
+          artist,
+          album,
+          duration,
+          url,
+          file,
+          addedAt: Date.now(),
+          cover,
+        });
+      } catch (error) {
+        console.error('Error parsing metadata for', file.name, error);
+        // Fallback for files that fail to parse
+        const url = URL.createObjectURL(file);
+        newSongs.push({
+          id: Math.random().toString(36).substr(2, 9),
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          artist: '未知艺术家',
+          duration: 0,
+          url,
+          file,
+          addedAt: Date.now(),
+          cover: `https://picsum.photos/seed/${encodeURIComponent(file.name)}/400/400`,
+        });
+      }
+    }
 
     setSongs(prev => {
       const combined = [...prev];
@@ -100,6 +125,26 @@ export default function App() {
     setIsScanning(false);
     setActiveTab('library');
   }, []);
+
+  const handleMatchAllMetadata = useCallback(async () => {
+    if (songs.length === 0) return;
+    
+    setIsMatching(true);
+    const updatedSongs = [...songs];
+    
+    for (let i = 0; i < updatedSongs.length; i++) {
+      const song = updatedSongs[i];
+      // Only match if it's missing a real cover or has "未知艺术家"
+      if (song.artist === '未知艺术家' || !song.lyrics) {
+        const match = await matchMetadata(song);
+        updatedSongs[i] = { ...song, ...match };
+      }
+    }
+    
+    setSongs(updatedSongs);
+    setIsMatching(false);
+    alert('匹配完成！已更新封面和歌词。');
+  }, [songs]);
 
   const handleAddFolder = useCallback(() => {
     if (fileInputRef.current) {
@@ -160,7 +205,9 @@ export default function App() {
                 onPlaySong={handlePlaySong} 
                 onAddFolder={handleAddFolder} 
                 onPlayAll={handlePlayAll}
+                onMatchMetadata={handleMatchAllMetadata}
                 isScanning={isScanning}
+                isMatching={isMatching}
               />
             )}
             {activeTab === 'folders' && (

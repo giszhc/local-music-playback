@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { FolderOpen, Play, MoreHorizontal, Heart, SortAsc, ChevronDown, Music } from 'lucide-react';
+import { FolderOpen, Play, MoreHorizontal, Heart, SortAsc, ChevronDown, Music, Sparkles } from 'lucide-react';
 import { Song } from '../types';
 import { pinyin } from 'pinyin-pro';
 import { cn } from '../lib/utils';
@@ -9,10 +9,20 @@ interface MusicLibraryProps {
   onPlaySong: (song: Song) => void;
   onAddFolder: () => void;
   onPlayAll: (songs: Song[]) => void;
+  onMatchMetadata: () => void;
   isScanning?: boolean;
+  isMatching?: boolean;
 }
 
-export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll, isScanning = false }: MusicLibraryProps) {
+export default function MusicLibrary({ 
+  songs, 
+  onPlaySong, 
+  onAddFolder, 
+  onPlayAll, 
+  onMatchMetadata,
+  isScanning = false,
+  isMatching = false
+}: MusicLibraryProps) {
   const [sortKey, setSortKey] = useState<'title' | 'artist' | 'addedAt'>('addedAt');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
@@ -179,6 +189,20 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
                 </div>
               )}
             </div>
+
+            <button 
+              onClick={onMatchMetadata}
+              disabled={isMatching || songs.length === 0}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title="一键从网络匹配封面和歌词"
+            >
+              {isMatching ? (
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Sparkles size={18} />
+              )}
+              {isMatching ? '正在匹配...' : '一键匹配'}
+            </button>
 
             <button 
               onClick={onAddFolder}
