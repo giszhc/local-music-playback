@@ -3,6 +3,7 @@ import { FolderOpen, Play, MoreHorizontal, Heart, SortAsc, ChevronDown, Music, S
 import { Song } from '../types';
 import { pinyin } from 'pinyin-pro';
 import { cn } from '../lib/utils';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface MusicLibraryProps {
   songs: Song[];
@@ -10,6 +11,7 @@ interface MusicLibraryProps {
   onAddFolder: () => void;
   onPlayAll: (songs: Song[]) => void;
   onMatchMetadata: () => void;
+  currentSong: Song | null;
   isScanning?: boolean;
   isMatching?: boolean;
 }
@@ -20,6 +22,7 @@ export default function MusicLibrary({
   onAddFolder, 
   onPlayAll, 
   onMatchMetadata,
+  currentSong,
   isScanning = false,
   isMatching = false
 }: MusicLibraryProps) {
@@ -32,6 +35,8 @@ export default function MusicLibrary({
   const isManualScrolling = useRef(false);
 
   const alphabet = useMemo(() => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split(''), []);
+
+  const songRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const getFirstLetter = useCallback((str: string) => {
     if (!str || typeof str !== 'string') return '#';
@@ -102,6 +107,26 @@ export default function MusicLibrary({
       });
 
       // Reset manual scroll flag after animation
+      setTimeout(() => {
+        isManualScrolling.current = false;
+      }, 800);
+    }
+  };
+
+  const scrollToCurrentSong = () => {
+    if (!currentSong) return;
+    const element = songRefs.current[currentSong.id];
+    const container = scrollContainerRef.current;
+    if (element && container) {
+      isManualScrolling.current = true;
+      
+      const top = element.offsetTop;
+      
+      container.scrollTo({
+        top: top - 150, // Offset to show song in middle
+        behavior: 'smooth'
+      });
+
       setTimeout(() => {
         isManualScrolling.current = false;
       }, 800);
@@ -256,10 +281,25 @@ export default function MusicLibrary({
                         {songsInGroup.map((song, index) => (
                           <div 
                             key={song.id}
+                            ref={el => songRefs.current[song.id] = el}
                             onDoubleClick={() => onPlaySong(song)}
-                            className="grid grid-cols-[48px_2fr_1.5fr_1fr_120px] px-6 py-3 items-center transition-all group hover:bg-white/5 cursor-pointer"
+                            className={cn(
+                              "grid grid-cols-[48px_2fr_1.5fr_1fr_120px] px-6 py-3 items-center transition-all group hover:bg-white/5 cursor-pointer",
+                              currentSong?.id === song.id && "bg-primary/5 border-l-2 border-primary"
+                            )}
                           >
-                            <span className="text-sm text-on-surface-variant group-hover:text-primary font-mono">{String(index + 1).padStart(2, '0')}</span>
+                            <span className={cn(
+                              "text-sm font-mono",
+                              currentSong?.id === song.id ? "text-primary" : "text-on-surface-variant group-hover:text-primary"
+                            )}>
+                              {currentSong?.id === song.id ? (
+                                <div className="flex gap-0.5 items-end h-3 w-4">
+                                  <div className="w-0.5 bg-primary animate-music-bar-1" />
+                                  <div className="w-0.5 bg-primary animate-music-bar-2" />
+                                  <div className="w-0.5 bg-primary animate-music-bar-3" />
+                                </div>
+                              ) : String(index + 1).padStart(2, '0')}
+                            </span>
                             <div className="flex items-center gap-4 overflow-hidden">
                               <div className="w-10 h-10 rounded-lg bg-surface-container overflow-hidden flex-shrink-0 border border-outline-variant/50">
                                 {song.cover ? (
@@ -325,6 +365,28 @@ export default function MusicLibrary({
           })}
         </div>
       </div>
+
+      {/* Floating Locate Button */}
+      <AnimatePresence>
+        {currentSong && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.5, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.5, y: 20 }}
+            whileHover={{ scale: 1.1, backgroundColor: 'var(--primary)' }}
+            whileTap={{ scale: 0.9 }}
+            onClick={scrollToCurrentSong}
+            className="absolute bottom-8 right-16 w-14 h-14 rounded-full bg-surface-container border border-outline-variant shadow-2xl flex items-center justify-center text-primary hover:text-white transition-colors z-50 group"
+            style={{ position: 'fixed', bottom: '120px', right: '40px' }}
+            title="定位到当前播放歌曲"
+          >
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping group-hover:hidden" />
+              <Music size={24} className="relative z-10" />
+            </div>
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

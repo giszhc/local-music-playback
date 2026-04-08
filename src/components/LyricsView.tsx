@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { ChevronDown, Sparkles, Heart, Share2, MoreHorizontal, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, ListMusic, Mic2 } from 'lucide-react';
 import { Song } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import { matchMetadata } from '../services/musicService';
 
 interface LyricsViewProps {
   song: Song | null;
@@ -12,6 +13,12 @@ interface LyricsViewProps {
   onClose: () => void;
   onPlayPause: () => void;
   onSeek: (time: number) => void;
+  onUpdateSong?: (songId: string, updates: Partial<Song>) => void;
+}
+
+interface LyricLine {
+  time: number;
+  text: string;
 }
 
 export default function LyricsView({
@@ -21,30 +28,58 @@ export default function LyricsView({
   duration,
   onClose,
   onPlayPause,
-  onSeek
+  onSeek,
+  onUpdateSong
 }: LyricsViewProps) {
-  // Mock lyrics for demo
-  const lyrics = [
-    { time: 0, text: "为你弹奏肖邦的夜曲" },
-    { time: 5, text: "纪念我死去的爱情" },
-    { time: 10, text: "而我为你隐姓埋名" },
-    { time: 15, text: "在月光下弹琴" },
-    { time: 20, text: "为你弹奏肖邦的夜曲" },
-    { time: 25, text: "纪念我死去的爱情" },
-    { time: 30, text: "而我为你隐姓埋名" },
-    { time: 35, text: "在月光下弹琴" },
-    { time: 40, text: "为你弹奏肖邦的夜曲" },
-    { time: 45, text: "纪念我死去的爱情" },
-    { time: 50, text: "而我为你隐姓埋名" },
-    { time: 55, text: "在月光下弹琴" },
-    { time: 60, text: "为你弹奏肖邦的夜曲" },
-    { time: 65, text: "纪念我死去的爱情" },
-    { time: 70, text: "而我为你隐姓埋名" },
-    { time: 75, text: "在月光下弹琴" },
-  ];
+  const [isAutoMatching, setIsAutoMatching] = useState(false);
 
-  const currentLyricIndex = lyrics.findIndex((l, i) => {
-    const next = lyrics[i + 1];
+  // Parse LRC lyrics
+  const parsedLyrics = useMemo<LyricLine[]>(() => {
+    if (!song?.lyrics) return [];
+    
+    const lines = song.lyrics.split('\n');
+    const result: LyricLine[] = [];
+    const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+
+    lines.forEach(line => {
+      const match = timeRegex.exec(line);
+      if (match) {
+        const mins = parseInt(match[1]);
+        const secs = parseInt(match[2]);
+        const ms = parseInt(match[3]);
+        const time = mins * 60 + secs + ms / (match[3].length === 3 ? 1000 : 100);
+        const text = line.replace(timeRegex, '').trim();
+        if (text) {
+          result.push({ time, text });
+        }
+      }
+    });
+
+    return result.sort((a, b) => a.time - b.time);
+  }, [song?.lyrics]);
+
+  // Auto-fetch lyrics if missing
+  useEffect(() => {
+    const autoFetch = async () => {
+      if (song && !song.lyrics && !isAutoMatching && onUpdateSong) {
+        setIsAutoMatching(true);
+        try {
+          const match = await matchMetadata(song);
+          if (match.lyrics) {
+            onUpdateSong(song.id, match);
+          }
+        } catch (error) {
+          console.error('Auto-fetch lyrics failed:', error);
+        } finally {
+          setIsAutoMatching(false);
+        }
+      }
+    };
+    autoFetch();
+  }, [song?.id, song?.lyrics, onUpdateSong]);
+
+  const currentLyricIndex = parsedLyrics.findIndex((l, i) => {
+    const next = parsedLyrics[i + 1];
     return progress >= l.time && (!next || progress < next.time);
   });
 
@@ -52,6 +87,14 @@ export default function LyricsView({
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleManualMatch = async () => {
+    if (!song || !onUpdateSong) return;
+    setIsAutoMatching(true);
+    const match = await matchMetadata(song);
+    onUpdateSong(song.id, match);
+    setIsAutoMatching(false);
   };
 
   return (
@@ -66,7 +109,7 @@ export default function LyricsView({
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-background/80 z-10" />
         <div 
-          className="absolute inset-0 bg-cover bg-center scale-110 blur-[100px] saturate-150 opacity-40"
+          className="absolute inset-0 bg-cover bg-center scale-110 blur-[100px] saturate-150 opacity-40 transition-all duration-1000"
           style={{ backgroundImage: `url(${song?.cover || 'https://picsum.photos/seed/music/1920/1080'})` }}
         />
       </div>
@@ -83,9 +126,17 @@ export default function LyricsView({
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all font-medium text-sm">
-            <Sparkles size={14} />
-            <span>一键匹配封面和歌词</span>
+          <button 
+            onClick={handleManualMatch}
+            disabled={isAutoMatching}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all font-medium text-sm disabled:opacity-50"
+          >
+            {isAutoMatching ? (
+              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Sparkles size={14} />
+            )}
+            <span>{isAutoMatching ? '正在匹配...' : '一键匹配封面和歌词'}</span>
           </button>
           <div className="flex items-center gap-3 ml-4">
             <button className="w-8 h-8 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors">
@@ -102,12 +153,12 @@ export default function LyricsView({
       </nav>
 
       {/* Main Content */}
-      <main className="relative z-10 flex-1 flex items-center justify-center px-12 gap-20 max-w-[1600px] mx-auto w-full overflow-hidden">
+      <main className="relative z-10 flex-1 flex items-center justify-center px-12 gap-16 max-w-[1400px] mx-auto w-full overflow-hidden">
         {/* Left: Album Art */}
-        <section className="flex-1 flex flex-col items-end justify-center">
+        <section className="w-[400px] flex flex-col items-center justify-center shrink-0">
           <div className="relative group">
             <div className="absolute -inset-4 bg-primary/20 blur-3xl opacity-40 group-hover:opacity-60 transition-opacity" />
-            <div className="relative w-[480px] h-[480px] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/5 bg-surface-container">
+            <div className="relative w-80 h-80 rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 bg-surface-container">
               <img 
                 src={song?.cover || 'https://picsum.photos/seed/music/800/800'} 
                 alt="" 
@@ -115,33 +166,50 @@ export default function LyricsView({
               />
             </div>
           </div>
-          <div className="mt-12 text-right w-[480px]">
-            <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">{song?.title}</h1>
-            <p className="text-xl text-white/60 font-medium">{song?.artist} — {song?.album || '未知专辑'}</p>
-            <div className="flex items-center justify-end gap-3 mt-6">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-white/5 text-white/40 uppercase">Lossless</span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-white/5 text-white/40 uppercase">24-bit / 192kHz</span>
+          <div className="mt-10 text-center space-y-2">
+            <h1 className="text-3xl font-black text-white tracking-tighter leading-none">{song?.title}</h1>
+            <p className="text-lg text-white/50 font-semibold">{song?.artist}</p>
+            <p className="text-sm text-white/30 font-medium">{song?.album || '未知专辑'}</p>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-widest bg-white/5 text-white/30 uppercase border border-white/5">Lossless</span>
+              <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-widest bg-white/5 text-white/30 uppercase border border-white/5">Hi-Res</span>
             </div>
           </div>
         </section>
 
         {/* Right: Lyrics */}
-        <section className="flex-1 h-full flex flex-col justify-center">
-          <div className="max-h-[600px] overflow-y-auto hide-scrollbar pr-12 space-y-8 mask-gradient py-40">
-            {lyrics.map((line, i) => (
-              <p 
-                key={i}
-                className={cn(
-                  "transition-all duration-500 cursor-pointer",
-                  currentLyricIndex === i 
-                    ? "text-4xl font-bold text-primary transform scale-105 origin-left" 
-                    : "text-2xl font-semibold text-white/20 hover:text-white/40"
-                )}
-                onClick={() => onSeek(line.time)}
-              >
-                {line.text}
-              </p>
-            ))}
+        <section className="flex-1 h-full flex flex-col justify-center min-w-0">
+          <div className="max-h-[500px] overflow-y-auto hide-scrollbar pr-12 space-y-6 mask-gradient py-32 scroll-smooth">
+            {parsedLyrics.length > 0 ? (
+              parsedLyrics.map((line, i) => (
+                <p 
+                  key={i}
+                  className={cn(
+                    "transition-all duration-700 cursor-pointer leading-tight",
+                    currentLyricIndex === i 
+                      ? "text-4xl font-black text-primary transform scale-105 origin-left tracking-tight" 
+                      : "text-2xl font-bold text-white/15 hover:text-white/30 tracking-tight"
+                  )}
+                  onClick={() => onSeek(line.time)}
+                >
+                  {line.text}
+                </p>
+              ))
+            ) : (
+              <div className="h-full flex flex-col items-start justify-center gap-6">
+                <div className="space-y-2">
+                  <p className="text-5xl font-black text-white/10 tracking-tighter">暂无歌词</p>
+                  <p className="text-lg text-white/5 font-medium">未能在本地或云端找到匹配的歌词文件</p>
+                </div>
+                <button 
+                  onClick={handleManualMatch}
+                  className="px-6 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all font-bold text-sm flex items-center gap-2"
+                >
+                  <Sparkles size={14} />
+                  尝试重新匹配
+                </button>
+              </div>
+            )}
           </div>
         </section>
       </main>

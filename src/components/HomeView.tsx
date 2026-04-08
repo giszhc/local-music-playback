@@ -1,15 +1,36 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Sparkles, Play, Heart, Music } from 'lucide-react';
 import { Song } from '../types';
+import { cn } from '../lib/utils';
 
 interface HomeViewProps {
   songs: Song[];
   onPlaySong: (song: Song) => void;
+  onViewAll: () => void;
+  onToggleLike: (songId: string) => void;
+  likedSongIds: Set<string>;
 }
 
-export default function HomeView({ songs, onPlaySong }: HomeViewProps) {
-  const recommendation = songs.length > 0 ? songs[Math.floor(Math.random() * songs.length)] : null;
-  const recentSongs = [...songs].sort((a, b) => b.addedAt - a.addedAt).slice(0, 5);
+export default function HomeView({ songs, onPlaySong, onViewAll, onToggleLike, likedSongIds }: HomeViewProps) {
+  // Use useMemo to pick a recommendation that stays stable during the session
+  // or at least doesn't change on every re-render.
+  // We can use the date as a seed for more stability.
+  const recommendation = useMemo(() => {
+    if (songs.length === 0) return null;
+    const today = new Date().toDateString();
+    // Simple hash of the date string to pick a song
+    let hash = 0;
+    for (let i = 0; i < today.length; i++) {
+      hash = ((hash << 5) - hash) + today.charCodeAt(i);
+      hash |= 0;
+    }
+    const index = Math.abs(hash) % songs.length;
+    return songs[index];
+  }, [songs]);
+
+  const recentSongs = useMemo(() => 
+    [...songs].sort((a, b) => b.addedAt - a.addedAt).slice(0, 5),
+  [songs]);
 
   if (songs.length === 0) {
     return (
@@ -56,8 +77,16 @@ export default function HomeView({ songs, onPlaySong }: HomeViewProps) {
                   <Play size={20} fill="currentColor" />
                   <span>立即播放</span>
                 </button>
-                <button className="p-4 rounded-2xl bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all border border-white/5">
-                  <Heart size={20} />
+                <button 
+                  onClick={() => onToggleLike(recommendation.id)}
+                  className={cn(
+                    "p-4 rounded-2xl backdrop-blur-md transition-all border border-white/5",
+                    likedSongIds.has(recommendation.id) 
+                      ? "bg-primary text-white" 
+                      : "bg-white/10 text-white hover:bg-white/20"
+                  )}
+                >
+                  <Heart size={20} fill={likedSongIds.has(recommendation.id) ? "currentColor" : "none"} />
                 </button>
               </div>
             </div>
@@ -69,7 +98,12 @@ export default function HomeView({ songs, onPlaySong }: HomeViewProps) {
       <section className="space-y-8">
         <div className="flex items-center justify-between">
           <h3 className="text-2xl font-bold tracking-tight">最近添加</h3>
-          <button className="text-sm text-primary font-bold hover:underline">查看全部</button>
+          <button 
+            onClick={onViewAll}
+            className="text-sm text-primary font-bold hover:underline"
+          >
+            查看全部
+          </button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
           {recentSongs.map((song) => (

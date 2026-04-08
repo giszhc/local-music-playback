@@ -27,6 +27,7 @@ export default function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
   const [addedFolders, setAddedFolders] = useState<string[]>([]);
+  const [likedSongIds, setLikedSongIds] = useState<Set<string>>(new Set());
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -180,6 +181,22 @@ export default function App() {
     }
   }, [player]);
 
+  const handleToggleLike = useCallback((songId: string) => {
+    setLikedSongIds(prev => {
+      const next = new Set(prev);
+      if (next.has(songId)) {
+        next.delete(songId);
+      } else {
+        next.add(songId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleUpdateSong = useCallback((songId: string, updates: Partial<Song>) => {
+    setSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
+  }, []);
+
   return (
     <div className="flex h-screen w-full bg-background text-white overflow-hidden">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -198,7 +215,15 @@ export default function App() {
         
         <div className="flex-1 mt-16 overflow-y-auto hide-scrollbar scroll-smooth">
           <div className="min-h-full w-full p-10 pb-36">
-            {activeTab === 'home' && <HomeView songs={songs} onPlaySong={handlePlaySong} />}
+            {activeTab === 'home' && (
+              <HomeView 
+                songs={songs} 
+                onPlaySong={handlePlaySong} 
+                onViewAll={() => setActiveTab('library')}
+                onToggleLike={handleToggleLike}
+                likedSongIds={likedSongIds}
+              />
+            )}
             {activeTab === 'library' && (
               <MusicLibrary 
                 songs={songs} 
@@ -206,6 +231,7 @@ export default function App() {
                 onAddFolder={handleAddFolder} 
                 onPlayAll={handlePlayAll}
                 onMatchMetadata={handleMatchAllMetadata}
+                currentSong={player.currentSong}
                 isScanning={isScanning}
                 isMatching={isMatching}
               />
@@ -267,8 +293,20 @@ export default function App() {
                 )}
               </div>
             )}
-            {activeTab === 'playlists' && <PlaylistsView />}
-            {activeTab === 'search' && <SearchView searchQuery={searchQuery} />}
+            {activeTab === 'playlists' && (
+              <PlaylistsView 
+                songs={songs} 
+                likedSongIds={likedSongIds} 
+                onPlaySong={handlePlaySong}
+              />
+            )}
+            {activeTab === 'search' && (
+              <SearchView 
+                searchQuery={searchQuery} 
+                songs={songs} 
+                onPlaySong={handlePlaySong}
+              />
+            )}
           </div>
         </div>
 
@@ -301,6 +339,7 @@ export default function App() {
             onClose={() => setShowLyrics(false)}
             onPlayPause={() => player.isPlaying ? player.pause() : player.play()}
             onSeek={player.seek}
+            onUpdateSong={handleUpdateSong}
           />
         )}
       </AnimatePresence>
