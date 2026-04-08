@@ -21,28 +21,43 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const isManualScrolling = useRef(false);
 
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('');
+  const alphabet = useMemo(() => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split(''), []);
 
-  const getFirstLetter = (str: string) => {
-    if (!str) return '#';
-    const firstChar = str.charAt(0).toUpperCase();
-    // If it's already an English letter, return it directly
+  const getFirstLetter = useCallback((str: string) => {
+    if (!str || typeof str !== 'string') return '#';
+    
+    const trimmed = str.trim();
+    if (trimmed.length === 0) return '#';
+    
+    const firstChar = trimmed.charAt(0).toUpperCase();
+    
+    // 1. Direct check for English letters
     if (/^[A-Z]$/.test(firstChar)) return firstChar;
     
-    // Otherwise try pinyin for Chinese characters
-    const py = pinyin(firstChar, { toneType: 'none', type: 'array' })[0]?.charAt(0).toUpperCase();
-    return (py && /^[A-Z]$/.test(py)) ? py : '#';
-  };
+    // 2. Check for Chinese characters using pinyin
+    try {
+      const py = pinyin(firstChar, { toneType: 'none', type: 'array' });
+      if (py && py.length > 0 && py[0]) {
+        const firstPyChar = py[0].charAt(0).toUpperCase();
+        if (/^[A-Z]$/.test(firstPyChar)) return firstPyChar;
+      }
+    } catch (e) {
+      console.error('Pinyin conversion error:', e);
+    }
+    
+    // 3. Fallback to #
+    return '#';
+  }, []);
 
   const sortedSongs = useMemo(() => {
     let result = [...songs];
     
     if (sortKey === 'title') {
-      result.sort((a, b) => a.title.localeCompare(b.title, 'zh'));
+      result.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'zh'));
     } else if (sortKey === 'artist') {
-      result.sort((a, b) => a.artist.localeCompare(b.artist, 'zh'));
+      result.sort((a, b) => (a.artist || '').localeCompare(b.artist || '', 'zh'));
     } else {
-      result.sort((a, b) => b.addedAt - a.addedAt);
+      result.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
     }
 
     return result;
@@ -50,13 +65,16 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
 
   const groupedSongs = useMemo(() => {
     const groups: { [key: string]: Song[] } = {};
+    // Initialize all letters to ensure they exist in the map if needed, 
+    // though we iterate over alphabet array anyway.
+    alphabet.forEach(l => groups[l] = []);
+    
     sortedSongs.forEach(song => {
       const letter = getFirstLetter(song.title);
-      if (!groups[letter]) groups[letter] = [];
       groups[letter].push(song);
     });
     return groups;
-  }, [sortedSongs]);
+  }, [sortedSongs, alphabet, getFirstLetter]);
 
   const scrollToLetter = (letter: string) => {
     const element = sectionRefs.current[letter];
@@ -257,22 +275,27 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
       </div>
 
       {/* A-Z Navigation */}
-      <div className="w-8 flex flex-col items-center justify-center py-4 bg-surface-container/50 backdrop-blur-xl rounded-full border border-outline-variant self-start sticky top-4 max-h-[calc(100vh-200px)] overflow-y-auto hide-scrollbar">
-        <div className="flex flex-col gap-0.5 text-[9px] font-black text-on-surface-variant">
+      <div className="w-10 flex flex-col items-center py-4 bg-surface-container/40 backdrop-blur-2xl rounded-2xl border border-outline-variant self-start sticky top-20 z-30 shadow-2xl">
+        <div className="flex flex-col gap-0.5">
           {alphabet.map(letter => {
             const hasSongs = groupedSongs[letter] && groupedSongs[letter].length > 0;
             return (
               <button
                 key={letter}
-                onClick={() => scrollToLetter(letter)}
-                disabled={!hasSongs}
+                onClick={() => hasSongs && scrollToLetter(letter)}
                 className={cn(
-                  "w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300",
-                  !hasSongs ? "opacity-20 cursor-default" : "hover:text-primary hover:bg-primary/10",
-                  activeLetter === letter ? "text-primary bg-primary/20 scale-110 shadow-lg shadow-primary/20" : ""
+                  "w-6 h-6 flex flex-col items-center justify-center rounded-md transition-all relative group",
+                  !hasSongs ? "text-on-surface-variant/20 cursor-default" : "text-on-surface hover:text-primary hover:bg-primary/10 cursor-pointer",
+                  activeLetter === letter ? "text-primary bg-primary/20 font-bold scale-110" : "font-medium"
                 )}
               >
-                {letter}
+                <span className="text-[10px] uppercase">{letter}</span>
+                {hasSongs && (
+                  <span className={cn(
+                    "absolute -right-0.5 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-primary transition-opacity",
+                    activeLetter === letter ? "opacity-100" : "opacity-40 group-hover:opacity-100"
+                  )} />
+                )}
               </button>
             );
           })}
