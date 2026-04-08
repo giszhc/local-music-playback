@@ -251,7 +251,7 @@ export default function MusicLibrary({
           </div>
         </div>
 
-        <div className="flex flex-col flex-1 bg-surface-container/20 rounded-3xl border border-outline-variant">
+        <div className="flex flex-col flex-1 bg-surface-container/20 rounded-3xl border border-outline-variant relative overflow-hidden">
           <div className="grid grid-cols-[48px_2fr_1.5fr_1fr_120px] px-6 py-4 border-b border-outline-variant text-xs font-bold uppercase tracking-wider text-on-surface-variant sticky top-0 bg-surface-container z-20">
             <span>#</span>
             <span>歌曲名称</span>
@@ -335,6 +335,27 @@ export default function MusicLibrary({
               </div>
             )}
           </div>
+
+          {/* Floating Locate Button - Fixed but positioned to avoid A-Z nav */}
+          <AnimatePresence>
+            {currentSong && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.5, y: 20 }}
+                whileHover={{ scale: 1.1, backgroundColor: 'var(--primary)' }}
+                whileTap={{ scale: 0.9 }}
+                onClick={scrollToCurrentSong}
+                className="fixed bottom-32 right-24 w-14 h-14 rounded-full bg-surface-container border border-outline-variant shadow-2xl flex items-center justify-center text-primary hover:text-white transition-all z-40 group opacity-40 hover:opacity-100"
+                title="定位到当前播放歌曲"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping group-hover:hidden" />
+                  <Music size={24} className="relative z-10" />
+                </div>
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -365,28 +386,6 @@ export default function MusicLibrary({
           })}
         </div>
       </div>
-
-      {/* Floating Locate Button */}
-      <AnimatePresence>
-        {currentSong && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.5, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.5, y: 20 }}
-            whileHover={{ scale: 1.1, backgroundColor: 'var(--primary)' }}
-            whileTap={{ scale: 0.9 }}
-            onClick={scrollToCurrentSong}
-            className="absolute bottom-8 right-16 w-14 h-14 rounded-full bg-surface-container border border-outline-variant shadow-2xl flex items-center justify-center text-primary hover:text-white transition-colors z-50 group"
-            style={{ position: 'fixed', bottom: '120px', right: '40px' }}
-            title="定位到当前播放歌曲"
-          >
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping group-hover:hidden" />
-              <Music size={24} className="relative z-10" />
-            </div>
-          </motion.button>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

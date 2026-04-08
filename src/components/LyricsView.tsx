@@ -13,6 +13,12 @@ interface LyricsViewProps {
   onClose: () => void;
   onPlayPause: () => void;
   onSeek: (time: number) => void;
+  onNext: () => void;
+  onPrev: () => void;
+  onTogglePlayMode: () => void;
+  onVolumeChange: (volume: number) => void;
+  playMode: 'list' | 'random' | 'single';
+  volume: number;
   onUpdateSong?: (songId: string, updates: Partial<Song>) => void;
 }
 
@@ -29,6 +35,12 @@ export default function LyricsView({
   onClose,
   onPlayPause,
   onSeek,
+  onNext,
+  onPrev,
+  onTogglePlayMode,
+  onVolumeChange,
+  playMode,
+  volume,
   onUpdateSong
 }: LyricsViewProps) {
   const [isAutoMatching, setIsAutoMatching] = useState(false);
@@ -240,24 +252,83 @@ export default function LyricsView({
 
         <div className="w-full max-w-[1200px] flex items-center justify-between">
           <div className="flex items-center gap-6 w-1/3">
-            <button className="text-white/60 hover:text-primary transition-colors"><Shuffle size={20} /></button>
-            <button className="text-white/60 hover:text-primary transition-colors"><Repeat size={20} /></button>
+            <button 
+              onClick={onTogglePlayMode}
+              className={cn(
+                "transition-colors",
+                playMode === 'random' ? "text-primary" : "text-white/60 hover:text-primary"
+              )}
+            >
+              <Shuffle size={20} />
+            </button>
+            <button 
+              onClick={onTogglePlayMode}
+              className={cn(
+                "transition-colors relative",
+                playMode !== 'random' ? "text-primary" : "text-white/60 hover:text-primary"
+              )}
+            >
+              <Repeat size={20} />
+              {playMode === 'single' && (
+                <span className="absolute -top-1 -right-1 text-[8px] font-bold bg-primary text-white w-3 h-3 rounded-full flex items-center justify-center">1</span>
+              )}
+            </button>
           </div>
           <div className="flex items-center gap-10">
-            <button className="hover:scale-110 transition-transform"><SkipBack size={32} fill="currentColor" className="text-white" /></button>
+            <button 
+              onClick={onPrev}
+              className="hover:scale-110 transition-transform"
+            >
+              <SkipBack size={32} fill="currentColor" className="text-white" />
+            </button>
             <button 
               onClick={onPlayPause}
               className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
             >
               {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
             </button>
-            <button className="hover:scale-110 transition-transform"><SkipForward size={32} fill="currentColor" className="text-white" /></button>
+            <button 
+              onClick={onNext}
+              className="hover:scale-110 transition-transform"
+            >
+              <SkipForward size={32} fill="currentColor" className="text-white" />
+            </button>
           </div>
           <div className="flex items-center justify-end gap-6 w-1/3">
-            <div className="flex items-center gap-3">
-              <Volume2 size={20} className="text-white/60" />
-              <div className="w-24 h-[3px] bg-white/5 rounded-full relative">
-                <div className="absolute h-full w-[70%] bg-white/40 rounded-full" />
+            <div className="flex items-center gap-3 w-32 group relative">
+              <Volume2 size={20} className="text-white/60 group-hover:text-white shrink-0" />
+              <div 
+                className="flex-1 h-[3px] bg-white/5 rounded-full relative cursor-pointer"
+                onMouseDown={(e) => {
+                  const container = e.currentTarget;
+                  const handleMouseMove = (moveEvent: MouseEvent) => {
+                    const rect = container.getBoundingClientRect();
+                    const x = moveEvent.clientX - rect.left;
+                    const newVolume = Math.max(0, Math.min(1, x / rect.width));
+                    onVolumeChange(newVolume);
+                  };
+                  
+                  const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                  };
+                  
+                  document.addEventListener('mousemove', handleMouseMove);
+                  document.addEventListener('mouseup', handleMouseUp);
+                  
+                  const rect = container.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  onVolumeChange(Math.max(0, Math.min(1, x / rect.width)));
+                }}
+              >
+                <div 
+                  className="absolute h-full bg-white/40 rounded-full group-hover:bg-primary" 
+                  style={{ width: `${volume * 100}%` }}
+                />
+                <div 
+                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ left: `${volume * 100}%` }}
+                />
               </div>
             </div>
             <button className="text-white/60 hover:text-primary transition-colors"><ListMusic size={20} /></button>

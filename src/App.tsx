@@ -336,9 +336,15 @@ export default function App() {
             isPlaying={player.isPlaying}
             progress={player.progress}
             duration={player.duration}
+            volume={player.volume}
+            playMode={player.playMode}
             onClose={() => setShowLyrics(false)}
             onPlayPause={() => player.isPlaying ? player.pause() : player.play()}
             onSeek={player.seek}
+            onNext={player.playNext}
+            onPrev={player.playPrevious}
+            onTogglePlayMode={player.togglePlayMode}
+            onVolumeChange={player.setVolume}
             onUpdateSong={handleUpdateSong}
           />
         )}

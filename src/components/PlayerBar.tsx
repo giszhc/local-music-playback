@@ -228,12 +228,29 @@ export default function PlayerBar({
           </AnimatePresence>
         </div>
 
-        <div className="flex items-center gap-3 w-32 group">
-          <Volume2 size={18} className="text-on-surface-variant group-hover:text-white" />
+        <div className="flex items-center gap-3 w-40 group relative">
+          <Volume2 size={18} className="text-on-surface-variant group-hover:text-white shrink-0" />
           <div 
             className="flex-1 h-1 bg-surface-container rounded-full relative cursor-pointer"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
+            onMouseDown={(e) => {
+              const container = e.currentTarget;
+              const handleMouseMove = (moveEvent: MouseEvent) => {
+                const rect = container.getBoundingClientRect();
+                const x = moveEvent.clientX - rect.left;
+                const newVolume = Math.max(0, Math.min(1, x / rect.width));
+                onVolumeChange(newVolume);
+              };
+              
+              const handleMouseUp = () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              };
+              
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+              
+              // Initial click
+              const rect = container.getBoundingClientRect();
               const x = e.clientX - rect.left;
               onVolumeChange(Math.max(0, Math.min(1, x / rect.width)));
             }}
@@ -242,7 +259,14 @@ export default function PlayerBar({
               className="absolute left-0 top-0 h-full bg-white/40 rounded-full group-hover:bg-primary" 
               style={{ width: `${volume * 100}%` }}
             />
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ left: `${volume * 100}%` }}
+            />
           </div>
+          <span className="text-[10px] text-on-surface-variant w-8 font-mono font-bold">
+            {Math.round(volume * 100)}%
+          </span>
         </div>
       </div>
     </footer>
