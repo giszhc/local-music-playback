@@ -151,14 +151,10 @@ export default function App() {
       <main className="flex-1 ml-64 flex flex-col relative overflow-hidden">
         <TopBar onSearch={handleSearch} />
         
-        <div className="flex-1 mt-16 overflow-hidden relative">
-          {activeTab === 'home' && (
-            <div className="h-full w-full p-10 pb-36 overflow-y-auto hide-scrollbar">
-              <HomeView songs={songs} onPlaySong={handlePlaySong} />
-            </div>
-          )}
-          {activeTab === 'library' && (
-            <div className="h-full w-full px-10 pt-10 pb-36">
+        <div className="flex-1 mt-16 overflow-y-auto hide-scrollbar scroll-smooth">
+          <div className="min-h-full w-full p-10 pb-36">
+            {activeTab === 'home' && <HomeView songs={songs} onPlaySong={handlePlaySong} />}
+            {activeTab === 'library' && (
               <MusicLibrary 
                 songs={songs} 
                 onPlaySong={handlePlaySong} 
@@ -166,10 +162,8 @@ export default function App() {
                 onPlayAll={handlePlayAll}
                 isScanning={isScanning}
               />
-            </div>
-          )}
-          {activeTab === 'folders' && (
-            <div className="h-full w-full p-10 pb-36 overflow-y-auto hide-scrollbar">
+            )}
+            {activeTab === 'folders' && (
               <div className="flex flex-col h-full">
                 <div className="flex items-end justify-between mb-8">
                   <div>
@@ -199,7 +193,7 @@ export default function App() {
                 </div>
 
                 {addedFolders.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant">
+                  <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant py-20">
                     <div className="w-20 h-20 rounded-full bg-surface-container flex items-center justify-center mb-6">
                       <FolderOpen size={40} className="text-white/20" />
                     </div>
@@ -225,18 +219,10 @@ export default function App() {
                   </div>
                 )}
               </div>
-            </div>
-          )}
-          {activeTab === 'playlists' && (
-            <div className="h-full w-full p-10 pb-36 overflow-y-auto hide-scrollbar">
-              <PlaylistsView />
-            </div>
-          )}
-          {activeTab === 'search' && (
-            <div className="h-full w-full p-10 pb-36 overflow-y-auto hide-scrollbar">
-              <SearchView searchQuery={searchQuery} />
-            </div>
-          )}
+            )}
+            {activeTab === 'playlists' && <PlaylistsView />}
+            {activeTab === 'search' && <SearchView searchQuery={searchQuery} />}
+          </div>
         </div>
 
         <PlayerBar 

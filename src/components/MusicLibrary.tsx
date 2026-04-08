@@ -17,16 +17,21 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
   
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const isManualScrolling = useRef(false);
 
-  const alphabet = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('');
 
   const getFirstLetter = (str: string) => {
-    const firstChar = str.charAt(0);
-    const py = pinyin(firstChar, { toneType: 'none', type: 'array' })[0]?.charAt(0).toUpperCase() || '#';
-    return /^[A-Z]$/.test(py) ? py : '#';
+    if (!str) return '#';
+    const firstChar = str.charAt(0).toUpperCase();
+    // If it's already an English letter, return it directly
+    if (/^[A-Z]$/.test(firstChar)) return firstChar;
+    
+    // Otherwise try pinyin for Chinese characters
+    const py = pinyin(firstChar, { toneType: 'none', type: 'array' })[0]?.charAt(0).toUpperCase();
+    return (py && /^[A-Z]$/.test(py)) ? py : '#';
   };
 
   const sortedSongs = useMemo(() => {
@@ -55,15 +60,16 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
 
   const scrollToLetter = (letter: string) => {
     const element = sectionRefs.current[letter];
-    if (element && scrollContainerRef.current) {
+    const container = scrollContainerRef.current;
+    if (element && container) {
       isManualScrolling.current = true;
       setActiveLetter(letter);
       
-      const container = scrollContainerRef.current;
+      // Calculate position relative to scroll container
       const top = element.offsetTop;
       
       container.scrollTo({
-        top,
+        top: top - 80, // Offset for sticky header
         behavior: 'smooth'
       });
 
@@ -74,9 +80,19 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
     }
   };
 
-  // Track scroll position to update active letter
+  // Find the scroll container and track scroll position
   useEffect(() => {
-    const container = scrollContainerRef.current;
+    const findScrollContainer = (el: HTMLElement | null): HTMLElement | null => {
+      if (!el) return null;
+      const overflow = window.getComputedStyle(el).overflowY;
+      if (overflow === 'auto' || overflow === 'scroll') return el;
+      return findScrollContainer(el.parentElement);
+    };
+
+    const rootElement = document.getElementById('music-library-root');
+    const container = findScrollContainer(rootElement);
+    scrollContainerRef.current = container;
+
     if (!container) return;
 
     const handleScroll = () => {
@@ -89,7 +105,7 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
         const element = sectionRefs.current[letter];
         if (element) {
           const elementTop = element.offsetTop;
-          if (elementTop <= scrollTop + 10) {
+          if (elementTop <= scrollTop + 120) { // Adjusted offset for better tracking
             currentLetter = letter;
           } else {
             break;
@@ -104,7 +120,7 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
   }, [alphabet]);
 
   return (
-    <div className="flex gap-8 h-full">
+    <div id="music-library-root" className="flex gap-8 min-h-full relative">
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-end justify-between mb-8">
           <div>
@@ -168,7 +184,7 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
           </div>
         </div>
 
-        <div className="flex flex-col flex-1 overflow-hidden bg-surface-container/20 rounded-3xl border border-outline-variant">
+        <div className="flex flex-col flex-1 bg-surface-container/20 rounded-3xl border border-outline-variant">
           <div className="grid grid-cols-[48px_2fr_1.5fr_1fr_120px] px-6 py-4 border-b border-outline-variant text-xs font-bold uppercase tracking-wider text-on-surface-variant sticky top-0 bg-surface-container z-20">
             <span>#</span>
             <span>歌曲名称</span>
@@ -177,10 +193,7 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
             <span className="text-right">操作</span>
           </div>
 
-          <div 
-            ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto hide-scrollbar scroll-smooth relative"
-          >
+          <div className="flex-1">
             {isScanning && songs.length === 0 ? (
               <div className="py-20 flex flex-col items-center justify-center text-on-surface-variant gap-4">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -193,8 +206,8 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
                   if (!songsInGroup || songsInGroup.length === 0) return null;
 
                   return (
-                    <div key={letter} ref={el => sectionRefs.current[letter] = el}>
-                      <div className="sticky top-0 bg-surface-container/90 backdrop-blur-md z-10 py-2 px-6 border-y border-outline-variant/30">
+                    <div key={letter} ref={el => sectionRefs.current[letter] = el} className="scroll-mt-20">
+                      <div className="sticky top-[49px] bg-surface-container/90 backdrop-blur-md z-10 py-2 px-6 border-y border-outline-variant/30">
                         <span className="text-sm font-black text-primary">{letter}</span>
                       </div>
                       <div className="divide-y divide-outline-variant/10">
@@ -219,7 +232,7 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
                             </div>
                             <span className="text-sm text-on-surface-variant truncate">{song.artist}</span>
                             <span className="text-sm text-on-surface-variant font-mono">
-                              {Math.floor(song.duration / 60)}:{(song.duration % 60).toString().padStart(2, '0')}
+                              {Math.floor(song.duration / 60)}:{(Math.floor(song.duration % 60)).toString().padStart(2, '0')}
                             </span>
                             <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button className="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-colors"><Heart size={16} /></button>
@@ -244,8 +257,8 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
       </div>
 
       {/* A-Z Navigation */}
-      <div className="w-10 flex flex-col items-center justify-center py-6 bg-surface-container/50 backdrop-blur-xl rounded-full border border-outline-variant self-start mt-20 sticky top-20">
-        <div className="flex flex-col gap-0.5 text-[10px] font-black text-on-surface-variant">
+      <div className="w-8 flex flex-col items-center justify-center py-4 bg-surface-container/50 backdrop-blur-xl rounded-full border border-outline-variant self-start sticky top-4 max-h-[calc(100vh-200px)] overflow-y-auto hide-scrollbar">
+        <div className="flex flex-col gap-0.5 text-[9px] font-black text-on-surface-variant">
           {alphabet.map(letter => {
             const hasSongs = groupedSongs[letter] && groupedSongs[letter].length > 0;
             return (
@@ -254,9 +267,9 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
                 onClick={() => scrollToLetter(letter)}
                 disabled={!hasSongs}
                 className={cn(
-                  "w-6 h-6 flex items-center justify-center rounded-full transition-all duration-300",
+                  "w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300",
                   !hasSongs ? "opacity-20 cursor-default" : "hover:text-primary hover:bg-primary/10",
-                  activeLetter === letter ? "text-primary bg-primary/20 scale-125 shadow-lg shadow-primary/20" : ""
+                  activeLetter === letter ? "text-primary bg-primary/20 scale-110 shadow-lg shadow-primary/20" : ""
                 )}
               >
                 {letter}
