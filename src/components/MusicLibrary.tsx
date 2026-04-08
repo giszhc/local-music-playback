@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { FolderOpen, Play, MoreHorizontal, Heart, SortAsc, ChevronDown } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { FolderOpen, Play, MoreHorizontal, Heart, SortAsc, ChevronDown, Music } from 'lucide-react';
 import { Song } from '../types';
 import { pinyin } from 'pinyin-pro';
 import { cn } from '../lib/utils';
@@ -16,8 +16,18 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
   const [sortKey, setSortKey] = useState<'title' | 'artist' | 'addedAt'>('addedAt');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const isManualScrolling = useRef(false);
 
   const alphabet = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+  const getFirstLetter = (str: string) => {
+    const firstChar = str.charAt(0);
+    const py = pinyin(firstChar, { toneType: 'none', type: 'array' })[0]?.charAt(0).toUpperCase() || '#';
+    return /^[A-Z]$/.test(py) ? py : '#';
+  };
 
   const sortedSongs = useMemo(() => {
     let result = [...songs];
@@ -30,22 +40,72 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
       result.sort((a, b) => b.addedAt - a.addedAt);
     }
 
-    if (activeLetter) {
-      result = result.filter(song => {
-        const firstChar = song.title.charAt(0);
-        // Using pinyin-pro to get the first letter of the pinyin
-        const py = pinyin(firstChar, { toneType: 'none', type: 'array' })[0]?.charAt(0).toUpperCase() || '#';
-        if (activeLetter === '#') return !/^[A-Z]$/.test(py);
-        return py === activeLetter;
-      });
-    }
-
     return result;
-  }, [songs, sortKey, activeLetter]);
+  }, [songs, sortKey]);
+
+  const groupedSongs = useMemo(() => {
+    const groups: { [key: string]: Song[] } = {};
+    sortedSongs.forEach(song => {
+      const letter = getFirstLetter(song.title);
+      if (!groups[letter]) groups[letter] = [];
+      groups[letter].push(song);
+    });
+    return groups;
+  }, [sortedSongs]);
+
+  const scrollToLetter = (letter: string) => {
+    const element = sectionRefs.current[letter];
+    if (element && scrollContainerRef.current) {
+      isManualScrolling.current = true;
+      setActiveLetter(letter);
+      
+      const container = scrollContainerRef.current;
+      const top = element.offsetTop;
+      
+      container.scrollTo({
+        top,
+        behavior: 'smooth'
+      });
+
+      // Reset manual scroll flag after animation
+      setTimeout(() => {
+        isManualScrolling.current = false;
+      }, 800);
+    }
+  };
+
+  // Track scroll position to update active letter
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (isManualScrolling.current) return;
+
+      const scrollTop = container.scrollTop;
+      
+      let currentLetter = null;
+      for (const letter of alphabet) {
+        const element = sectionRefs.current[letter];
+        if (element) {
+          const elementTop = element.offsetTop;
+          if (elementTop <= scrollTop + 10) {
+            currentLetter = letter;
+          } else {
+            break;
+          }
+        }
+      }
+      setActiveLetter(currentLetter);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [alphabet]);
 
   return (
     <div className="flex gap-8 h-full">
-      <div className="flex-1">
+      <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-end justify-between mb-8">
           <div>
             <h2 className="text-4xl font-extrabold text-white tracking-tight">本地音乐库</h2>
@@ -108,8 +168,8 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
           </div>
         </div>
 
-        <div className="flex flex-col">
-          <div className="grid grid-cols-[48px_2fr_1.5fr_1fr_120px] px-4 py-4 border-b border-outline-variant text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+        <div className="flex flex-col flex-1 overflow-hidden bg-surface-container/20 rounded-3xl border border-outline-variant">
+          <div className="grid grid-cols-[48px_2fr_1.5fr_1fr_120px] px-6 py-4 border-b border-outline-variant text-xs font-bold uppercase tracking-wider text-on-surface-variant sticky top-0 bg-surface-container z-20">
             <span>#</span>
             <span>歌曲名称</span>
             <span>艺术家</span>
@@ -117,69 +177,92 @@ export default function MusicLibrary({ songs, onPlaySong, onAddFolder, onPlayAll
             <span className="text-right">操作</span>
           </div>
 
-          <div className="space-y-1 mt-2 overflow-y-auto max-h-[calc(100vh-320px)] pr-4 hide-scrollbar">
+          <div 
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto hide-scrollbar scroll-smooth relative"
+          >
             {isScanning && songs.length === 0 ? (
               <div className="py-20 flex flex-col items-center justify-center text-on-surface-variant gap-4">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 <p className="font-medium animate-pulse">正在深度扫描文件夹中的音频文件...</p>
               </div>
             ) : (
-              <>
-                {sortedSongs.map((song, index) => (
-                  <div 
-                    key={song.id}
-                    onDoubleClick={() => onPlaySong(song)}
-                    className="grid grid-cols-[48px_2fr_1.5fr_1fr_120px] px-4 py-4 rounded-xl items-center transition-all group hover:bg-white/5 cursor-pointer"
-                  >
-                    <span className="text-sm text-on-surface-variant group-hover:text-primary">{String(index + 1).padStart(2, '0')}</span>
-                    <div className="flex items-center gap-4 overflow-hidden">
-                      <div className="w-10 h-10 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
-                        {song.cover ? (
-                          <img src={song.cover} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-on-surface-variant">
-                            <Play size={16} />
-                          </div>
-                        )}
+              <div className="pb-20">
+                {alphabet.map(letter => {
+                  const songsInGroup = groupedSongs[letter];
+                  if (!songsInGroup || songsInGroup.length === 0) return null;
+
+                  return (
+                    <div key={letter} ref={el => sectionRefs.current[letter] = el}>
+                      <div className="sticky top-0 bg-surface-container/90 backdrop-blur-md z-10 py-2 px-6 border-y border-outline-variant/30">
+                        <span className="text-sm font-black text-primary">{letter}</span>
                       </div>
-                      <span className="text-sm font-semibold text-white truncate">{song.title}</span>
+                      <div className="divide-y divide-outline-variant/10">
+                        {songsInGroup.map((song, index) => (
+                          <div 
+                            key={song.id}
+                            onDoubleClick={() => onPlaySong(song)}
+                            className="grid grid-cols-[48px_2fr_1.5fr_1fr_120px] px-6 py-3 items-center transition-all group hover:bg-white/5 cursor-pointer"
+                          >
+                            <span className="text-sm text-on-surface-variant group-hover:text-primary font-mono">{String(index + 1).padStart(2, '0')}</span>
+                            <div className="flex items-center gap-4 overflow-hidden">
+                              <div className="w-10 h-10 rounded-lg bg-surface-container overflow-hidden flex-shrink-0 border border-outline-variant/50">
+                                {song.cover ? (
+                                  <img src={song.cover} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-on-surface-variant">
+                                    <Music size={16} />
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-sm font-semibold text-white truncate">{song.title}</span>
+                            </div>
+                            <span className="text-sm text-on-surface-variant truncate">{song.artist}</span>
+                            <span className="text-sm text-on-surface-variant font-mono">
+                              {Math.floor(song.duration / 60)}:{(song.duration % 60).toString().padStart(2, '0')}
+                            </span>
+                            <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button className="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-colors"><Heart size={16} /></button>
+                              <button className="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-colors"><MoreHorizontal size={16} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <span className="text-sm text-on-surface-variant truncate">{song.artist}</span>
-                    <span className="text-sm text-on-surface-variant font-manrope">
-                      {Math.floor(song.duration / 60)}:{(song.duration % 60).toString().padStart(2, '0')}
-                    </span>
-                    <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="text-on-surface-variant hover:text-primary"><Heart size={18} /></button>
-                      <button className="text-on-surface-variant hover:text-primary"><MoreHorizontal size={18} /></button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
+                
                 {sortedSongs.length === 0 && !isScanning && (
                   <div className="py-20 text-center text-on-surface-variant">
                     <p>暂无音乐，请添加文件夹扫描</p>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
       </div>
 
       {/* A-Z Navigation */}
-      <div className="w-8 flex flex-col items-center justify-center py-4 bg-surface rounded-full border border-outline-variant self-start mt-20">
-        <div className="flex flex-col gap-1 text-[9px] font-bold text-on-surface-variant">
-          {alphabet.map(letter => (
-            <button
-              key={letter}
-              onClick={() => setActiveLetter(activeLetter === letter ? null : letter)}
-              className={cn(
-                "hover:text-primary transition-colors py-0.5",
-                activeLetter === letter ? "text-primary scale-125" : ""
-              )}
-            >
-              {letter}
-            </button>
-          ))}
+      <div className="w-10 flex flex-col items-center justify-center py-6 bg-surface-container/50 backdrop-blur-xl rounded-full border border-outline-variant self-start mt-20 sticky top-20">
+        <div className="flex flex-col gap-0.5 text-[10px] font-black text-on-surface-variant">
+          {alphabet.map(letter => {
+            const hasSongs = groupedSongs[letter] && groupedSongs[letter].length > 0;
+            return (
+              <button
+                key={letter}
+                onClick={() => scrollToLetter(letter)}
+                disabled={!hasSongs}
+                className={cn(
+                  "w-6 h-6 flex items-center justify-center rounded-full transition-all duration-300",
+                  !hasSongs ? "opacity-20 cursor-default" : "hover:text-primary hover:bg-primary/10",
+                  activeLetter === letter ? "text-primary bg-primary/20 scale-125 shadow-lg shadow-primary/20" : ""
+                )}
+              >
+                {letter}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
