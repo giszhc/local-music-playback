@@ -49,10 +49,8 @@
    ```
 
 3. **启动开发服务器**
-   ```bash
-   npm run dev
-   ```
-   启动后访问 `http://localhost:3000` 即可预览。
+   - **Web 端**: `npm run dev` (访问 `http://localhost:3000`)
+   - **桌面端 (Electron)**: `npm run electron:dev` (启动桌面窗口)
 
 ## 📦 打包与部署
 
@@ -66,15 +64,23 @@ npm run build
 
 **注意**：根据项目配置，打包产物将输出到项目根目录的 **`docs`** 文件夹中。
 
-### 部署说明
-
+### Web 端部署
 由于打包输出目录设置为 `docs`，该项目非常适合部署到 **GitHub Pages**：
-
 1. 将代码推送到 GitHub 仓库。
 2. 进入仓库的 **Settings > Pages**。
 3. 在 **Build and deployment > Branch** 下，选择你的主分支（如 `main` 或 `master`）。
 4. 将文件夹路径设置为 **`/docs`**。
 5. 保存后，GitHub 将自动部署该目录下的内容。
+
+### 桌面端打包 (多平台)
+运行以下命令进行跨平台桌面应用打包：
+```bash
+npm run electron:build
+```
+产物将生成在 **`dist_electron`** 文件夹中，支持：
+- **macOS**: `.dmg`, `.zip`
+- **Windows**: `.exe` (安装程序), `.zip`
+- **Linux**: `.AppImage`, `.deb`
 
 ## 🛠️ 技术栈
 
@@ -84,6 +90,7 @@ npm run build
 - **动画**: Framer Motion
 - **音频处理**: Howler.js
 - **元数据解析**: music-metadata-browser
+- **桌面框架**: Electron
 - **图标**: Lucide React
 
 ## 📄 许可证
