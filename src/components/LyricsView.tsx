@@ -3,7 +3,7 @@ import { ChevronDown, Sparkles, Heart, MoreHorizontal, Play, Pause, SkipBack, Sk
 import { Song } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-import { matchMetadata } from '../services/musicService';
+import { matchMetadata, METADATA_SOURCES, getSearchUrl } from '../services/musicService';
 
 interface LyricsViewProps {
   song: Song | null;
@@ -60,19 +60,37 @@ export default function LyricsView({
     
     const lines = song.lyrics.split('\n');
     const result: LyricLine[] = [];
-    const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+    // Support formats like [00:00.00], [00:00:00], [00:00], [0:00.00], etc.
+    const timeRegex = /\[(\d{1,3}):(\d{1,2})(?:[:.](\d{1,3}))?\]/g;
 
     lines.forEach(line => {
-      const match = timeRegex.exec(line);
-      if (match) {
+      let match;
+      const timestamps: number[] = [];
+      let lastIndex = 0;
+
+      // Find all timestamps in the line
+      while ((match = timeRegex.exec(line)) !== null) {
         const mins = parseInt(match[1]);
         const secs = parseInt(match[2]);
-        const ms = parseInt(match[3]);
-        const time = mins * 60 + secs + ms / (match[3].length === 3 ? 1000 : 100);
-        const text = line.replace(timeRegex, '').trim();
-        if (text) {
+        const msStr = match[3] || '0';
+        const ms = parseInt(msStr);
+        
+        // Calculate time in seconds
+        // If ms is 2 digits, it's centiseconds (1/100), if 3 digits it's milliseconds (1/1000)
+        const msFactor = msStr.length === 3 ? 1000 : 100;
+        const time = mins * 60 + secs + ms / msFactor;
+        
+        timestamps.push(time);
+        lastIndex = timeRegex.lastIndex;
+      }
+
+      // The text is what remains after all timestamps
+      const text = line.substring(lastIndex).trim();
+      
+      if (text) {
+        timestamps.forEach(time => {
           result.push({ time, text });
-        }
+        });
       }
     });
 
@@ -220,18 +238,46 @@ export default function LyricsView({
                 </p>
               ))
             ) : (
-              <div className="h-full flex flex-col items-start justify-center gap-6">
+              <div className="h-full flex flex-col items-start justify-center gap-8">
                 <div className="space-y-2">
                   <p className="text-5xl font-black text-white/10 tracking-tighter">暂无歌词</p>
-                  <p className="text-lg text-white/5 font-medium">未能在本地或云端找到匹配的歌词文件</p>
+                  <p className="text-lg text-white/5 font-medium">未能在云端找到匹配的歌词文件</p>
                 </div>
-                <button 
-                  onClick={handleManualMatch}
-                  className="px-6 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all font-bold text-sm flex items-center gap-2"
-                >
-                  <Sparkles size={14} />
-                  尝试重新匹配
-                </button>
+                
+                <div className="space-y-4 w-full max-w-md">
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={handleManualMatch}
+                      disabled={isAutoMatching}
+                      className="px-6 py-2.5 rounded-full bg-primary text-white hover:bg-primary/90 transition-all font-bold text-sm flex items-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50"
+                    >
+                      {isAutoMatching ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Sparkles size={16} />
+                      )}
+                      {isAutoMatching ? '正在重试...' : '重新自动匹配'}
+                    </button>
+                  </div>
+
+                  <div className="pt-4 border-t border-white/5">
+                    <p className="text-xs font-bold text-white/20 uppercase tracking-widest mb-4">手动前往外部网站搜索</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {METADATA_SOURCES.filter(s => s.type === 'search').slice(0, 6).map(source => (
+                        <a
+                          key={source.name}
+                          href={song ? getSearchUrl(source.name, song.title, song.artist) || '#' : '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-xs font-semibold text-white/40 hover:text-white"
+                        >
+                          <Music size={12} />
+                          {source.name}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
