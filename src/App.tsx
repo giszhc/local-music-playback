@@ -12,6 +12,7 @@ import MusicLibrary from './components/MusicLibrary';
 import LyricsView from './components/LyricsView';
 import PlaylistsView from './components/PlaylistsView';
 import SearchView from './components/SearchView';
+import HistoryView from './components/HistoryView';
 import { useMusicPlayer } from './hooks/useMusicPlayer';
 import { Song } from './types';
 import { AnimatePresence } from 'motion/react';
@@ -28,10 +29,74 @@ export default function App() {
   const [isMatching, setIsMatching] = useState(false);
   const [addedFolders, setAddedFolders] = useState<string[]>([]);
   const [likedSongIds, setLikedSongIds] = useState<Set<string>>(new Set());
+  const [history, setHistory] = useState<{ song: Song; playedAt: number }[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const player = useMusicPlayer();
+
+  // Load persisted data on mount
+  useEffect(() => {
+    const savedLiked = localStorage.getItem('likedSongIds');
+    if (savedLiked) {
+      setLikedSongIds(new Set(JSON.parse(savedLiked)));
+    }
+
+    const savedHistory = localStorage.getItem('playbackHistory');
+    if (savedHistory) {
+      setHistory(JSON.parse(savedHistory));
+    }
+
+    const savedVolume = localStorage.getItem('playerVolume');
+    if (savedVolume) {
+      player.setVolume(parseFloat(savedVolume));
+    }
+
+    const savedPlayMode = localStorage.getItem('playerPlayMode');
+    if (savedPlayMode) {
+      player.setPlayMode(savedPlayMode as any);
+    }
+
+    const savedLastSong = localStorage.getItem('lastPlayedSong');
+    const savedProgress = localStorage.getItem('lastPlayedProgress');
+    if (savedLastSong) {
+      const song = JSON.parse(savedLastSong);
+      // Note: The URL will be invalid, but we can show the metadata
+      player.setCurrentSong(song);
+      if (savedProgress) {
+        player.seek(parseFloat(savedProgress));
+      }
+    }
+  }, []);
+
+  // Persist data on changes
+  useEffect(() => {
+    localStorage.setItem('likedSongIds', JSON.stringify(Array.from(likedSongIds)));
+  }, [likedSongIds]);
+
+  useEffect(() => {
+    localStorage.setItem('playbackHistory', JSON.stringify(history));
+  }, [history]);
+
+  useEffect(() => {
+    localStorage.setItem('playerVolume', player.volume.toString());
+  }, [player.volume]);
+
+  useEffect(() => {
+    localStorage.setItem('playerPlayMode', player.playMode);
+  }, [player.playMode]);
+
+  useEffect(() => {
+    if (player.currentSong) {
+      localStorage.setItem('lastPlayedSong', JSON.stringify(player.currentSong));
+    }
+  }, [player.currentSong]);
+
+  useEffect(() => {
+    if (player.progress > 0) {
+      localStorage.setItem('lastPlayedProgress', player.progress.toString());
+    }
+  }, [player.progress]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -68,6 +133,9 @@ export default function App() {
         const album = metadata.common.album;
         const duration = metadata.format.duration || 0;
         
+        // Use a deterministic ID based on title and artist to persist across sessions
+        const songId = btoa(encodeURIComponent(`${title}-${artist}`)).substring(0, 16);
+
         // Extract cover if available
         let cover = `https://picsum.photos/seed/${encodeURIComponent(title)}/400/400`;
         if (metadata.common.picture && metadata.common.picture.length > 0) {
@@ -77,7 +145,7 @@ export default function App() {
         }
 
         newSongs.push({
-          id: Math.random().toString(36).substr(2, 9),
+          id: songId,
           title,
           artist,
           album,
@@ -91,9 +159,12 @@ export default function App() {
         console.error('Error parsing metadata for', file.name, error);
         // Fallback for files that fail to parse
         const url = URL.createObjectURL(file);
+        const fallbackTitle = file.name.replace(/\.[^/.]+$/, "");
+        const fallbackId = btoa(encodeURIComponent(`${fallbackTitle}-未知艺术家`)).substring(0, 16);
+        
         newSongs.push({
-          id: Math.random().toString(36).substr(2, 9),
-          title: file.name.replace(/\.[^/.]+$/, ""),
+          id: fallbackId,
+          title: fallbackTitle,
           artist: '未知艺术家',
           duration: 0,
           url,
@@ -172,6 +243,14 @@ export default function App() {
       player.setQueue(songs);
     }
     player.play(song);
+    
+    // Add to history
+    setHistory(prev => {
+      // Remove if already exists to move to top
+      const filtered = prev.filter(item => item.song.id !== song.id);
+      const newItem = { song, playedAt: Date.now() };
+      return [newItem, ...filtered].slice(0, 50); // Keep last 50
+    });
   }, [player, songs]);
 
   const handlePlayAll = useCallback((songsToPlay: Song[]) => {
@@ -305,6 +384,14 @@ export default function App() {
                 searchQuery={searchQuery} 
                 songs={songs} 
                 onPlaySong={handlePlaySong}
+              />
+            )}
+            {activeTab === 'history' && (
+              <HistoryView 
+                history={history} 
+                onPlaySong={handlePlaySong}
+                onClearHistory={() => setHistory([])}
+                currentSong={player.currentSong}
               />
             )}
           </div>

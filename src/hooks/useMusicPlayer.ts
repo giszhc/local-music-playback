@@ -54,6 +54,14 @@ export function useMusicPlayer() {
       },
       onload: () => {
         setDuration(newHowl.duration());
+      },
+      onloaderror: (id, error) => {
+        console.error('Howl load error:', error);
+        setIsPlaying(false);
+        // If it's a blob URL error, it's likely expired
+        if (targetSong.url.startsWith('blob:')) {
+          alert('本地文件访问已过期，请重新导入文件夹以继续播放。');
+        }
       }
     });
 

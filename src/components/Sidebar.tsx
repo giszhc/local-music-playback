@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Library, Folder, ListMusic, Search, Plus } from 'lucide-react';
+import { Home, Library, Folder, ListMusic, Search, Plus, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface SidebarProps {
@@ -13,6 +13,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     { id: 'library', icon: Library, label: '音乐库' },
     { id: 'folders', icon: Folder, label: '文件夹' },
     { id: 'playlists', icon: ListMusic, label: '播放列表' },
+    { id: 'history', icon: Clock, label: '播放历史' },
     { id: 'search', icon: Search, label: '搜索' },
   ];
 
